@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Snake 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Earthy “raw” palette */
+      --bg-0: #07110b;
+      --bg-1: #0b1a12;
+      --panel: #0e1f16;
+      --muted: #143122;
+      --text: #eef6ef;
+      --text-dim: #bcd4c2;
+      --acc: #9be15a;
+      /* mossy green */
+      --acc-2: #ffd36b;
+      /* warm amber */
+      --ok: #59d090;
+      --danger: #ff6b73;
+      /* Shadows / rounding */
+      --radius: 16px;
+      --shadow: 0 6px 24px rgba(0, 0, 0, .35), 0 2px 8px rgba(0, 0, 0, .24);
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: Inter, system-ui, Segoe UI, Roboto, Arial;
+      background:
+        radial-gradient(1200px 800px at 20% 10%, #583858, #366f47 60%, #52ff97 90%),
+        linear-gradient(#77867d, #0b1a12);
+      overflow: hidden;
+    }
+
+    /* subtle noise overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .03;
+      mix-blend-mode: soft-light;
+      background-image:
+        radial-gradient(1px 1px at 20px 30px, #fff, transparent 60%),
+        radial-gradient(1px 1px at 60px 80px, #fff, transparent 60%),
+        radial-gradient(1px 1px at 100px 50px, #fff, transparent 60%);
+      background-size: 120px 120px, 160px 160px, 220px 220px;
+    }
+
+    /* vignette */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(60% 60% at 50% 50%, transparent 60%, rgba(22, 187, 216, 0.45) 100%);
+      mix-blend-mode: multiply;
+      opacity: .6;
+    }
+
+    /* Canvas */
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh
+    }
+
+    /* HUD */
+    #hud {
+      position: fixed;
+      inset: 0 0 auto 0;
+      padding: 10px 14px;
+      background: linear-gradient(#0009, #0000);
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+    }
+
+    #hud .row {
+      max-width: 1080px;
+      margin: 6px auto;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #hud .row .left,
+    #hud .row .right {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid #203226;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 8px 12px;
+      pointer-events: auto;
+    }
+
+    .tag {
+      color: var(--text-dim)
+    }
+
+    .stat {
+      font-weight: 800
+    }
+
+    /* Buttons */
+    button {
+      background: linear-gradient(180deg, #183b2a, #122a1e);
+      color: var(--text);
+      border: 1px solid #1b3d2b;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform .12s ease, opacity .12s, background .12s;
+      font-weight: 600;
+    }
+
+    button:hover {
+      transform: translateY(-1px)
+    }
+
+    button:active {
+      transform: translateY(0) scale(.98)
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed
+    }
+
+    .iconbtn {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      opacity: .9
+    }
+
+    /* Overlays (Start, Pause, End) */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(182, 159, 159, 0.6)
+    }
+
+    .hidden {
+      display: none !important
+    }
+
+    .card {
+      width: min(92vw, 720px);
+      background: var(--panel);
+      border: 1px solid #263a2c;
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      animation: popin .35s ease both;
+    }
+
+    @keyframes popin {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 8px 0;
+      line-height: 1.1
+    }
+
+    h1 {
+      font-size: 32px
+    }
+
+    h2 {
+      font-size: 22px
+    }
+
+    h3 {
+      font-size: 18px
+    }
+
+    p {
+      color: var(--text-dim)
+    }
+
+    .btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px
+    }
+
+    /* Tabs in Start Overlay */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0
+    }
+
+    .tab-btn {
+      background: #0f2119;
+      border: 1px solid #1a2d22;
+      padding: 8px 12px;
+      border-radius: 10px
+    }
+
+    .tab-btn.active {
+      background: #173423;
+      border-color: #234b33
+    }
+
+    .tab {
+      display: none
+    }
+
+    .tab.active {
+      display: block
+    }
+
+    kbd {
+      background: #0f1524;
+      border: 1px solid #223;
+      border-radius: 8px;
+      padding: 2px 6px
+    }
+
+    ol,
+    ul {
+      margin: 8px 0 0 20px
+    }
+
+    /* Score pulse */
+    .pulse {
+      animation: pulse .25s ease
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1)
+      }
+
+      50% {
+        transform: scale(1.12);
+        color: var(--acc-2)
+      }
+
+      100% {
+        transform: scale(1)
+      }
+    }
+
+    /* Responsive font tweaks */
+    @media (min-width:640px) {
+      h1 {
+        font-size: 34px
+      }
+
+      .card {
+        padding: 22px
+      }
+    }
+
+    @media (min-width:960px) {
+      h1 {
+        font-size: 36px
+      }
+    }
+
+    @media (min-width:1280px) {
+      h1 {
+        font-size: 38px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- HUD -->
+  <div id="hud">
+    <div class="row">
+      <div class="left panel">
+        <span class="tag">Score:</span> <span id="score" class="stat">0</span>
+        <span class="tag" style="margin-left:12px">Level:</span> <span id="level" class="stat">1</span>
+        <span class="tag" style="margin-left:12px">Time:</span> <span id="time" class="stat">00:00</span>
+      </div>
+      <div class="right">
+        <button id="restart" class="panel">Restart</button>
+        <button id="nextLevel" class="panel" disabled>Next Level</button>
+        <button id="btnPause" class="iconbtn panel" title="Pause/Resume (P)">
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7 5h4v14H7zm6 0h4v14h-4z" />
+          </svg>
+        </button>
+        <button id="btnAudio" class="iconbtn panel" title="Mute/Unmute">
+          <svg class="icon" id="iconVolume" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 9v6h4l5 5V4L8 9H4z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COUNTDOWN OVERLAY -->
+  <div id="countdownOverlay" class="overlay hidden" style="background: rgba(0,0,0,0.35);">
+    <div class="card" style="background: transparent; border: 0; box-shadow: none;">
+      <div id="countdownNum" style="
+      font-size: clamp(64px, 12vw, 160px);
+      font-weight: 800;
+      letter-spacing: .02em;
+      text-shadow: 0 8px 24px rgba(0,0,0,.45);
+      line-height: 1;
+      text-align: center;
+    ">3</div>
+    </div>
+  </div>
+
+  <!-- START MENU -->
+  <div id="startOverlay" class="overlay">
+    <div class="card">
+      <h1>Snake 3D</h1>
+      <p>Modern, slick, and a little bit venomous.</p>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="playTab">Play</button>
+        <button class="tab-btn" data-tab="howTab">How</button>
+        <button class="tab-btn" data-tab="scoreTab">Highscores</button>
+        <button class="tab-btn" data-tab="settingsTab">Settings</button>
+      </div>
+
+      <div id="playTab" class="tab active">
+        <div class="btns">
+          <button id="btnStart">Start Game</button>
+        </div>
+      </div>
+
+      <div id="howTab" class="tab">
+        <h3>Controls & Rules</h3>
+        <ul>
+          <li>Move: <kbd>WASD</kbd> or <kbd>Arrow Keys</kbd></li>
+          <li>Pause/Resume: <kbd>P</kbd></li>
+          <li>Toggle Camera: <kbd>C</kbd></li>
+          <li>Next Level (after win): <kbd>N</kbd></li>
+          <li>Normal Food: +1 &nbsp;|&nbsp; Golden: +3 (expires) &nbsp;|&nbsp; Poison: −2 & shrink</li>
+        </ul>
+      </div>
+
+      <div id="scoreTab" class="tab">
+        <h3>Top 10 Leaderboard</h3>
+        <ol id="startBoard"></ol>
+      </div>
+
+      <div id="settingsTab" class="tab">
+        <h3>Settings</h3>
+        <div class="btns" style="flex-direction:column; gap:12px; align-items:flex-start">
+          <div>
+            <strong>Graphics</strong><br />
+            <label><input type="checkbox" id="optBloom" checked> Bloom (subtle)</label>&nbsp;&nbsp;
+            <label><input type="checkbox" id="optSSAO"> SSAO</label>&nbsp;&nbsp;
+            <label><input type="checkbox" id="optHDR" checked> HDRI Environment</label>&nbsp;&nbsp;
+            <label><input type="checkbox" id="optPerf"> Performance Mode</label>
+            <div style="margin-top:6px">
+              Shadow quality:
+              <select id="optShadows">
+                <option value="low">Low</option>
+                <option value="med" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+              &nbsp; FPS cap:
+              <select id="optFPS">
+                <option value="0">Uncapped</option>
+                <option value="60" selected>60</option>
+                <option value="30">30</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <strong>Audio</strong><br />
+            <label><input type="checkbox" id="optMute"> Mute</label>
+            <div style="display:flex; gap:10px; margin-top:6px">
+              <span>Master</span><input id="volMaster" type="range" min="0" max="1" step="0.01" value="0.8" />
+              <span>Music</span><input id="volMusic" type="range" min="0" max="1" step="0.01" value="0.5" />
+              <span>SFX</span><input id="volSfx" type="range" min="0" max="1" step="0.01" value="0.9" />
+            </div>
+          </div>
+
+          <div>
+            <strong>Gameplay</strong><br />
+            Difficulty:
+            <select id="optDifficulty">
+              <option value="casual">Casual</option>
+              <option value="classic" selected>Classic</option>
+              <option value="pro">Pro</option>
+            </select>
+            &nbsp; <label><input type="checkbox" id="optInvert"> Invert controls</label>
+            &nbsp; <label><input type="checkbox" id="optWrap"> Force wrap world</label>
+            &nbsp; <label><input type="checkbox" id="optFollowCam"> Follow camera</label>
+          </div>
+
+          <div>
+            <strong>Accessibility</strong><br />
+            <label><input type="checkbox" id="optReduceMotion"> Reduce motion</label>
+            &nbsp; Colorblind mode:
+            <select id="optCB">
+              <option value="none" selected>None</option>
+              <option value="deutan">Deutan</option>
+              <option value="protan">Protan</option>
+              <option value="tritan">Tritan</option>
+            </select>
+          </div>
+        </div>
+        <div class="btns"><button id="btnSaveSettings">Save Settings</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAUSE MENU -->
+  <div id="pauseOverlay" class="overlay hidden">
+    <div class="card">
+      <h2>Paused</h2>
+      <p>Press <kbd>P</kbd> to resume.</p>
+      <div class="btns">
+        <button id="btnResume">Resume</button>
+        <button id="btnPauseRestart">Restart Level</button>
+        <button id="btnPauseMenu">Main Menu</button>
+        <button id="btnOpenSettings">Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEVEL COMPLETE / GAME OVER -->
+  <div id="overlay" class="overlay hidden">
+    <div class="card">
+      <h2 id="overlayTitle">Game Over</h2>
+      <p id="overlayMsg"></p>
+      <div id="saveForm" class="hidden">
+        <input id="playerName" placeholder="Your name" maxlength="16" />
+        <button id="saveScore">Save</button>
+      </div>
+      <h3>Leaderboard (Best Times)</h3>
+      <ol id="board"></ol>
+      <div class="btns">
+        <button id="nextOverlay" class="hidden">Next Level</button>
+        <button id="playAgain">Play Again</button>
+        <button id="toMenu">Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio -->
+  <audio id="bgm" src="./sounds/bgmusic.mp3" loop preload="auto"></audio>
+  <audio id="sfxEat" src="./sounds/eat.mp3" preload="auto"></audio>
+  <audio id="sfxEatGolden" src="./sounds/levelup.mp3" preload="auto"></audio>
+  <audio id="sfxEatPoison" src="./sounds/eat.mp3" preload="auto"></audio>
+  <audio id="sfxLevel" src="./sounds/levelup.mp3" preload="auto"></audio>
+  <audio id="sfxOver" src="./sounds/gameover.mp3" preload="auto"></audio>
+
+  <!-- Main -->
+  <script type="module" src="./game.js"></script>
+</body>
+
+</html>
