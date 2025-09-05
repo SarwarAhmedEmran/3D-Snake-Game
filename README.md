@@ -73,6 +73,7 @@ A reimagined 3D version of the classic Snake game built with HTML, CSS, and Java
 - `snake_rough.jpg` → shininess control  
 - `snake_ao.jpg` → ambient occlusion (subtle shadows)  
 - `env.hdr` → HDR lighting (optional, improves visuals)
+**Special note: i could not upload ground_diffuse.jpg and ground_normal.jpg because these files are too large to upload.
 
   
 
